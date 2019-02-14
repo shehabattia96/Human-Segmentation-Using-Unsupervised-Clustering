@@ -3,7 +3,7 @@ import pptk
 import time
 from plyfile import PlyData, PlyElement
 import tkinter
-from tkinter import *
+from tkinter import Tk, Button, Label, TOP, RIGHT,LEFT, simpledialog
 from tkinter.filedialog import askopenfilename
 
 def readPly():
@@ -20,10 +20,27 @@ def readPly():
     return dataPoints, colorPoints, filename
 
 def actionBtnCallback():
-    updateInstructionTxt("hi")
-    disableActionBtn()
-    print("next")
-    savePLY()
+    if instructionWindow['landmarkPos'] < instructionWindow['landmarks'].shape[0]:
+        landmark = instructionWindow['landmarks'][instructionWindow['landmarkPos']]
+        instructionWindow['landmarkPos'] = instructionWindow['landmarkPos'] + 1
+        updateInstructionTxt("Please select " + str(landmark['name'])[1:] + ", then click next. "+str(instructionWindow['landmarkPos']+1)+"/"+str(instructionWindow['landmarks'].shape[0]))
+        
+        #Change color
+        if instructionWindow['landmarkPos']>0:
+            colorlandmark = instructionWindow['landmarks'][instructionWindow['landmarkPos']-2]
+            print(colorlandmark['name'])
+            print([colorlandmark['r'],colorlandmark['g'],colorlandmark['b']])
+            selectedIndecies = getSelectedPointsFromPlyViewerWindow()
+            if len(selectedIndecies)>0:
+                global colorPoints
+                colorPoints[selectedIndecies.tolist(),:] = [colorlandmark['r'],colorlandmark['g'],colorlandmark['b']]
+                updatePlyViewerWindow(True)
+            else:
+                None #Todo: Prompt user if they're sure they want to skip
+    else:
+        disableActionBtn()
+        updateInstructionTxt("You're finished. The file has been saved to the original directory with your name and _annotated as suffixes. Press quit to exit.")
+        savePLY()
 
 def disableActionBtn():
     global instructionWindow
@@ -51,6 +68,11 @@ def loadGUI(filename):
     root = Tk() #Create the window
     instructionWindow["window"] = root #Save a pointer to the window
     root.title("Human segmentation manual annotation")
+    #Ask for name
+    while "user" not in instructionWindow or instructionWindow["user"] == "" or instructionWindow["user"] is None:
+        instructionWindow["user"] = simpledialog.askstring("Annotator name", "What's your name? (Keep this answer consistent between files)",
+                                parent=root)
+    instructionWindow["user"] = str(instructionWindow["user"]).strip()
     #What file did we load:
     Label(root, text="Loaded file: "+filename).pack(side=TOP,pady=10)
     #Instruction text:
@@ -72,16 +94,19 @@ def loadGUI(filename):
     #Create pptk point cloud viewer:
     plyViewerWindow = pptk.viewer([0,0,0])
     plyViewerWindow.set(point_size=0.001,show_grid=True)
-    #Update the gui for the first cycle
-    updatePlyViewerWindow()
     return instructionWindow,plyViewerWindow
 
 def updateInstructionTxt(msg):
     global instructionWindow
     instructionWindow["instructionTxt"]["text"] = msg
 
-def updatePlyViewerWindow():
+def updatePlyViewerWindow(attributesOnly = False):
     global plyViewerWindow, dataPoints, colorPoints
+    if attributesOnly:
+        plyViewerWindow.attributes(colorPoints)
+        plyViewerWindow.set(selected=[])
+        return
+    plyViewerWindow.clear()
     plyViewerWindow.load(dataPoints, colorPoints)
 
 def getSelectedPointsFromPlyViewerWindow():
@@ -104,7 +129,7 @@ def savePLY():
     #Create a vertex element (Required by PLY standards)
     el = PlyElement.describe(w, 'vertex')
     #Write it to "{original filename}_annotated.ply"
-    PlyData([el]).write(instructionWindow["filename"][:-4]+'_annotated'+'.ply')
+    PlyData([el]).write(instructionWindow["filename"][:-4]+'_'+instructionWindow["user"]+'_annotated.ply')
 
 
 instructionWindow = None
@@ -115,10 +140,17 @@ keepAlive = True
 debug = False
 if __name__ == "__main__":
     dataPoints, colorPoints, filename = readPly() #Prompt user and get ply file
-    instructionWindow,plyViewerWindow = loadGUI(filename) #Load up gui
+    instructionWindow, plyViewerWindow = loadGUI(filename) #Load up gui
+    #Update the gui for the first cycle
+    updatePlyViewerWindow()
+    #Read landmarks
+    instructionWindow['landmarks'] = np.genfromtxt('landmarks.csv', delimiter=',',skip_header =1,dtype=[('r','i8'),('g','i8'),('b','i8'),('name','S50')])
+    instructionWindow['landmarkPos'] = -1
     while (keepAlive):
         if debug:
             print(getSelectedPointsFromPlyViewerWindow())
             time.sleep(0.5)
         instructionWindow["window"].update_idletasks()
         instructionWindow["window"].update()
+        # getSelectedPointsFromPlyViewerWindow()
+        time.sleep(0.05)
