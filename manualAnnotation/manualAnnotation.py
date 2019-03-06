@@ -1,10 +1,20 @@
 import numpy as np
 import pptk
 import time
+import json
 from plyfile import PlyData, PlyElement
 import tkinter
 from tkinter import Tk, Button, Label, TOP, RIGHT,LEFT, simpledialog
 from tkinter.filedialog import askopenfilename
+
+# Define some global vars
+instructionWindow = None
+plyViewerWindow = None
+dataPoints = None
+colorPoints = None
+keepAlive = True
+debug = False
+selection = {} #Stores the selected indicies.
 
 def readPly():
     global filename
@@ -20,24 +30,25 @@ def readPly():
     return dataPoints, colorPoints, filename
 
 def actionBtnCallback():
-    if instructionWindow['landmarkPos'] < instructionWindow['landmarks'].shape[0]:
-        landmark = instructionWindow['landmarks'][instructionWindow['landmarkPos']]
-        instructionWindow['landmarkPos'] = instructionWindow['landmarkPos'] + 1
-        updateInstructionTxt("Please select " + str(landmark['name'])[1:] + ", then click next. "+str(instructionWindow['landmarkPos']+1)+"/"+str(instructionWindow['landmarks'].shape[0]))
-        
-        #Change color
-        if instructionWindow['landmarkPos']>0:
-            colorlandmark = instructionWindow['landmarks'][instructionWindow['landmarkPos']-2]
-            print(colorlandmark['name'])
-            print([colorlandmark['r'],colorlandmark['g'],colorlandmark['b']])
-            selectedIndecies = getSelectedPointsFromPlyViewerWindow()
-            if len(selectedIndecies)>0:
-                global colorPoints
-                colorPoints[selectedIndecies.tolist(),:] = [colorlandmark['r'],colorlandmark['g'],colorlandmark['b']]
-                updatePlyViewerWindow(True)
-            else:
-                None #Todo: Prompt user if they're sure they want to skip
-    else:
+    landmark = instructionWindow['landmarks'][instructionWindow['landmarkPos']]
+    instructionWindow['landmarkPos'] = instructionWindow['landmarkPos'] + 1
+    updateInstructionTxt("Please select " + str(landmark['name'])[1:] + ", then click next. "+str(instructionWindow['landmarkPos']+1)+"/"+str(instructionWindow['landmarks'].shape[0]))
+    
+    #Change color
+    if instructionWindow['landmarkPos']>0:
+        colorlandmark = instructionWindow['landmarks'][instructionWindow['landmarkPos']-2]
+        print(colorlandmark['name'])
+        print([colorlandmark['r'],colorlandmark['g'],colorlandmark['b']])
+        selectedIndecies = getSelectedPointsFromPlyViewerWindow()
+        if len(selectedIndecies)>0:
+            global colorPoints, dataPoints,selection
+            colorPoints[selectedIndecies.tolist(),:] = [colorlandmark['r'],colorlandmark['g'],colorlandmark['b']]
+            updatePlyViewerWindow(True)
+            selection[str(colorlandmark['name'])] = json.dumps({"indecies":selectedIndecies.tolist(),"points":dataPoints[selectedIndecies.tolist(),:].tolist()})
+        else:
+            None #Todo: Prompt user if they're sure they want to skip
+    #When they're done, save        
+    if instructionWindow['landmarkPos'] >= instructionWindow['landmarks'].shape[0]:
         disableActionBtn()
         updateInstructionTxt("You're finished. The file has been saved to the original directory with your name and _annotated as suffixes. Press quit to exit.")
         savePLY()
@@ -93,7 +104,7 @@ def loadGUI(filename):
     root.protocol("WM_DELETE_WINDOW", callQuit) #If you x out, call callQuit()
     #Create pptk point cloud viewer:
     plyViewerWindow = pptk.viewer([0,0,0])
-    plyViewerWindow.set(point_size=0.001,show_grid=True)
+    plyViewerWindow.set(point_size=0.00001,show_grid=True)
     return instructionWindow,plyViewerWindow
 
 def updateInstructionTxt(msg):
@@ -116,7 +127,10 @@ def getSelectedPointsFromPlyViewerWindow():
         callQuit("Can't connect to viewer") #Can't connect to viewer.
 
 def savePLY():
-    global dataPoints, colorPoints
+    global dataPoints, colorPoints, selection
+    #Save indecies:
+    with open(instructionWindow["filename"][:-4]+'_'+instructionWindow["user"]+'_selections.json', 'w') as fp:
+        json.dump(selection, fp)
     #Create an empty array to save different datatypes.
     wtype=np.dtype([('x', 'f4'), ('y', 'f4'),('z', 'f4'),('red', 'u1'), ('green', 'u1'), ('blue', 'u1')])
     w=np.empty(dataPoints.shape[0],dtype=wtype)
@@ -132,20 +146,15 @@ def savePLY():
     PlyData([el]).write(instructionWindow["filename"][:-4]+'_'+instructionWindow["user"]+'_annotated.ply')
 
 
-instructionWindow = None
-plyViewerWindow = None
-dataPoints = None
-colorPoints = None
-keepAlive = True
-debug = False
 if __name__ == "__main__":
     dataPoints, colorPoints, filename = readPly() #Prompt user and get ply file
     instructionWindow, plyViewerWindow = loadGUI(filename) #Load up gui
     #Update the gui for the first cycle
     updatePlyViewerWindow()
     #Read landmarks
-    instructionWindow['landmarks'] = np.genfromtxt('landmarks.csv', delimiter=',',skip_header =1,dtype=[('r','i8'),('g','i8'),('b','i8'),('name','S50')])
+    instructionWindow['landmarks'] = np.genfromtxt('landmarks_test.csv', delimiter=',',skip_header =1,dtype=[('r','i8'),('g','i8'),('b','i8'),('name','S50')])
     instructionWindow['landmarkPos'] = -1
+    selection["min"] = np.min(dataPoints,axis=0).tolist() #Save min x y z for calibration later if needed.
     while (keepAlive):
         if debug:
             print(getSelectedPointsFromPlyViewerWindow())

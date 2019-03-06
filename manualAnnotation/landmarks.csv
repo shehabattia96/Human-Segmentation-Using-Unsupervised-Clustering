@@ -24,5 +24,7 @@ RGB code,Landmark
 100,100,50,Neck
 100, 100, 100,Chin
 100,100, 150,Nose
+100,100,200,Butt
+100,100,240,Small of Back
 100,0,50,Left fingertips
 0,100,50,Right fingertips
