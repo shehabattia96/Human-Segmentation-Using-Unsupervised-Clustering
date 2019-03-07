@@ -103,8 +103,9 @@ def loadGUI(filename):
         command=callQuit).pack(side=RIGHT, padx=10)
     root.protocol("WM_DELETE_WINDOW", callQuit) #If you x out, call callQuit()
     #Create pptk point cloud viewer:
-    plyViewerWindow = pptk.viewer([0,0,0])
-    plyViewerWindow.set(point_size=0.00001,show_grid=True)
+    plyViewerWindow = pptk.viewer([0,0,0],debug=True)
+    plyViewerWindow.set(point_size=0.001,show_grid=True)
+    plyViewerWindow.color_map('jet')
     return instructionWindow,plyViewerWindow
 
 def updateInstructionTxt(msg):
@@ -152,7 +153,7 @@ if __name__ == "__main__":
     #Update the gui for the first cycle
     updatePlyViewerWindow()
     #Read landmarks
-    instructionWindow['landmarks'] = np.genfromtxt('landmarks_test.csv', delimiter=',',skip_header =1,dtype=[('r','i8'),('g','i8'),('b','i8'),('name','S50')])
+    instructionWindow['landmarks'] = np.genfromtxt('landmarks.csv', delimiter=',',skip_header =1,dtype=[('r','i8'),('g','i8'),('b','i8'),('name','S50')])
     instructionWindow['landmarkPos'] = -1
     selection["min"] = np.min(dataPoints,axis=0).tolist() #Save min x y z for calibration later if needed.
     while (keepAlive):

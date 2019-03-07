@@ -1,10 +1,10 @@
 RGB code,Landmark
 50,0,0,Left leg
 0,50,0,Right leg
-50,50,0,Torso
+255,144,30,Torso
 100,0,0,Left arm
 0,100,0,Right arm
-100,100,0,Head
+100,100,2,Head
 50,0,50,Left foot
 0,50,50,Right foot
 50,0,100,Left knee
