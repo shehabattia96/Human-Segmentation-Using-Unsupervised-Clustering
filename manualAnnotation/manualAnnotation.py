@@ -15,6 +15,7 @@ colorPoints = None
 keepAlive = True
 debug = False
 selection = {} #Stores the selected indicies.
+colorPointsHistory = []
 
 def readPly():
     global filename
@@ -29,6 +30,18 @@ def readPly():
     colorPoints = np.zeros_like(dataPoints)
     return dataPoints, colorPoints, filename
 
+def backBtnCallback():
+    #Remove the applied color from color map and update view
+    colorPoints[colorPointsHistory[-1],:] = [0,0,0]
+    updatePlyViewerWindow(True)
+    del colorPointsHistory[-1] #Delete the previous indecies from history
+    #Display instructions:
+    instructionWindow['landmarkPos'] = instructionWindow['landmarkPos'] - 1
+    landmark = instructionWindow['landmarks'][instructionWindow['landmarkPos']-1]
+    updateInstructionTxt("Please select " + str(landmark['name'])[1:] + ", then click next. "+str(instructionWindow['landmarkPos']+1)+"/"+str(instructionWindow['landmarks'].shape[0]))
+    if instructionWindow['landmarkPos'] == 0:
+        disableBackBtn()
+
 def actionBtnCallback():
     landmark = instructionWindow['landmarks'][instructionWindow['landmarkPos']]
     instructionWindow['landmarkPos'] = instructionWindow['landmarkPos'] + 1
@@ -36,6 +49,7 @@ def actionBtnCallback():
     
     #Change color
     if instructionWindow['landmarkPos']>0:
+        enableBackBtn()
         colorlandmark = instructionWindow['landmarks'][instructionWindow['landmarkPos']-2]
         print(colorlandmark['name'])
         print([colorlandmark['r'],colorlandmark['g'],colorlandmark['b']])
@@ -43,6 +57,7 @@ def actionBtnCallback():
         if len(selectedIndecies)>0:
             global colorPoints, dataPoints,selection
             colorPoints[selectedIndecies.tolist(),:] = [colorlandmark['r'],colorlandmark['g'],colorlandmark['b']]
+            colorPointsHistory.append(selectedIndecies.tolist())
             updatePlyViewerWindow(True)
             selection[str(colorlandmark['name'])] = json.dumps({"indecies":selectedIndecies.tolist(),"points":dataPoints[selectedIndecies.tolist(),:].tolist()})
         else:
@@ -53,12 +68,20 @@ def actionBtnCallback():
         updateInstructionTxt("You're finished. The file has been saved to the original directory with your name and _annotated as suffixes. Press quit to exit.")
         savePLY()
 
+
+
 def disableActionBtn():
     global instructionWindow
     instructionWindow["actionBtn"]["state"]="disabled"
 def enableActionBtn():
     global instructionWindow
     instructionWindow["actionBtn"]["state"]="normal"
+def disableBackBtn():
+    global instructionWindow
+    instructionWindow["backBtn"]["state"]="disabled"
+def enableBackBtn():
+    global instructionWindow
+    instructionWindow["backBtn"]["state"]="normal"
 
 
 def callQuit(msg = None):
@@ -98,6 +121,14 @@ def loadGUI(filename):
        command= actionBtnCallback)
     instructionWindow["actionBtn"] = actionBtn
     actionBtn.pack(side=LEFT, padx=10)
+    #Back button:
+    backBtn = Button(root, 
+       text='Go Back', 
+       fg="darkgreen", 
+       command= backBtnCallback,
+       state="disabled")
+    instructionWindow["backBtn"] = backBtn
+    backBtn.pack(side=LEFT, padx=10)
     #Quit button:
     Button(root,text='Quit', 
         command=callQuit).pack(side=RIGHT, padx=10)
@@ -129,6 +160,7 @@ def getSelectedPointsFromPlyViewerWindow():
 
 def savePLY():
     global dataPoints, colorPoints, selection
+    disableBackBtn()
     #Save indecies:
     with open(instructionWindow["filename"][:-4]+'_'+instructionWindow["user"]+'_selections.json', 'w') as fp:
         json.dump(selection, fp)
