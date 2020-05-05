@@ -1,0 +1,30 @@
+RGB code,Landmark
+50,0,0,Left leg
+0,50,0,Right leg
+255,144,30,Torso
+100,0,0,Left arm
+0,100,0,Right arm
+100,100,2,Head
+50,0,50,Left foot
+0,50,50,Right foot
+50,0,100,Left knee
+0,50,100,Right knee
+50,50,20,Left hip
+50,50,40,Right hip
+50,50,60,Left illiac
+50,50,80,Right illiac
+50,50,100,Symphysis pubis
+50,50,120,Belly bottom
+50,50,140,Belly max
+50,50,160,Belly top
+50,50,180,Left waist
+50,50,200,Right waist
+50,50,220,Left shoulder
+50,50,240,Right shoulder
+100,100,50,Neck
+100, 100, 100,Chin
+100,100, 150,Nose
+100,100,200,Butt
+100,100,240,Small of Back
+100,0,50,Left fingertips
+0,100,50,Right fingertips
